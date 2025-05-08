@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from recipnps.p3p import arun, fischler, grunert, kneip
+from recipnps.p3p import arun, fischler, grunert, kneip, nakano, lambdatwist
 
 
 class TestP3P(unittest.TestCase):
@@ -48,6 +48,20 @@ class TestP3P(unittest.TestCase):
         p_cam, p_world, t_gt, rotation_gt = self.random_test_case()
         p_i = p_cam / np.linalg.norm(p_cam, axis=0)
         solutions = kneip(p_world, p_i)
+        flag = any(np.allclose(sol.translation, t_gt, atol=1e-7) and np.allclose(sol.rotation, rotation_gt, atol=1e-7) for sol in solutions)
+        self.assertTrue(flag)
+
+    def test_nakano(self):
+        p_cam, p_world, t_gt, rotation_gt = self.random_test_case()
+        p_i = p_cam / np.linalg.norm(p_cam, axis=0)
+        solutions = nakano(p_world, p_i)
+        flag = any(np.allclose(sol.translation, t_gt, atol=1e-7) and np.allclose(sol.rotation, rotation_gt, atol=1e-7) for sol in solutions)
+        self.assertTrue(flag)
+
+    def test_lambdatwist(self):
+        p_cam, p_world, t_gt, rotation_gt = self.random_test_case()
+        p_i = p_cam / np.linalg.norm(p_cam, axis=0)
+        solutions = lambdatwist(p_world, p_i)
         flag = any(np.allclose(sol.translation, t_gt, atol=1e-7) and np.allclose(sol.rotation, rotation_gt, atol=1e-7) for sol in solutions)
         self.assertTrue(flag)
 
