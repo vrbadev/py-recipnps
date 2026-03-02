@@ -66,6 +66,60 @@ class TestP3P(unittest.TestCase):
         flag = any(np.allclose(sol.translation, t_gt, atol=1e-7) and np.allclose(sol.rotation, rotation_gt, atol=1e-7) for sol in solutions)
         self.assertTrue(flag)
 
+    # -- timing comparison -----------------------------------------------
+
+    def _make_case(self, seed):
+        """Deterministic random P3P test case from seed."""
+        rng = np.random.default_rng(seed)
+        p_cam = rng.standard_normal((3, 3))
+        p_cam /= np.linalg.norm(p_cam, axis=0)
+
+        t_gt = rng.uniform(0.0, 1.0, size=3)
+        rotation_gt, _ = np.linalg.qr(rng.standard_normal((3, 3)))
+        if np.linalg.det(rotation_gt) < 0:
+            rotation_gt[:, 0] *= -1.0
+
+        p_world = np.linalg.inv(rotation_gt) @ (p_cam - t_gt[:, None])
+        p_i = p_cam / np.linalg.norm(p_cam, axis=0)
+        return p_world, p_i, t_gt, rotation_gt
+
+    def test_timing_comparison(self):
+        n_cases = 100
+        seeds = [8000 + i for i in range(n_cases)]
+
+        solvers = {
+            "grunert": grunert,
+            "fischler": fischler,
+            "kneip": kneip,
+            "nakano": nakano,
+            "lambdatwist": lambdatwist,
+        }
+
+        elapsed = {name: 0.0 for name in solvers}
+        solved = {name: 0 for name in solvers}
+
+        for seed in seeds:
+            p_world, p_i, t_gt, rotation_gt = self._make_case(seed)
+            for name, solver in solvers.items():
+                t0 = time.perf_counter()
+                sols = solver(p_world, p_i)
+                elapsed[name] += time.perf_counter() - t0
+                ok = any(
+                    np.allclose(sol.translation, t_gt, atol=1e-7)
+                    and np.allclose(sol.rotation, rotation_gt, atol=1e-7)
+                    for sol in sols
+                )
+                solved[name] += int(ok)
+
+        print(f"\n[P3P timing comparison over {n_cases} cases]")
+        for name in solvers:
+            avg_us = 1e6 * elapsed[name] / n_cases
+            print(f"  {name:14s} avg={avg_us:9.1f} µs, solved={solved[name]}/{n_cases}")
+
+        for name in solvers:
+            self.assertEqual(solved[name], n_cases,
+                             msg=f"{name} failed {n_cases - solved[name]}/{n_cases}")
+
 
 if __name__ == '__main__':
     unittest.main()
