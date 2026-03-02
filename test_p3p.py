@@ -1,12 +1,13 @@
 import unittest
 import numpy as np
+import time
 
 from recipnps.p3p import arun, fischler, grunert, kneip, nakano, lambdatwist
 
 
 class TestP3P(unittest.TestCase):
     def random_test_case(self):
-        np.random.seed()
+        np.random.seed(time.time_ns() % (2**32))
         p_cam = np.random.rand(3, 3)
         p_cam /= np.linalg.norm(p_cam, axis=0)
 

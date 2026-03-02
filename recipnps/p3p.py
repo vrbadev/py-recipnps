@@ -1,7 +1,7 @@
 import numpy as np
 
 from .model import Model
-from numpy.linalg import svd
+from numpy.linalg import svd #from .svd_from_scratch import svd_jacobi as svd # TODO grunert is failing sometimes with custom svd
 
 
 def arun(p, p_prime):
@@ -307,6 +307,15 @@ G. Nakano, “A Simple Direct Solution to the Perspective-Three-Point Problem,�
 def nakano(p_w, p_i, polishing=1):
     # p_w: 3x3 world points, p_i: 3x3 bearing vectors (normalized)
     # polishing: int, number of root polishing iterations (default 1).
+    # Check for degenerate input (collinear or coincident points)
+    if (
+        np.linalg.matrix_rank(p_w) < 2 or
+        np.linalg.norm(np.cross(p_w[:,1] - p_w[:,0], p_w[:,2] - p_w[:,0])) < 1e-10 or
+        np.any(np.isnan(p_w)) or np.any(np.isnan(p_i)) or
+        np.any(np.isinf(p_w)) or np.any(np.isinf(p_i))
+    ):
+        return []
+
     d = np.linalg.norm(np.column_stack([p_w[:,1]-p_w[:,0], p_w[:,2]-p_w[:,1], p_w[:,0]-p_w[:,2]]), axis=0)
     idx = np.argmax(d)
     if idx == 1:
@@ -344,6 +353,10 @@ def nakano(p_w, p_i, polishing=1):
     h[2] = f[4]**2*g[0] - 2*f[0]*f[4]**2 - 2*f[0]*f[5] + f[1]**2*g[5] - f[3]**2 - 2*f[1]*f[3]*f[4] + 2*f[1]*f[4]*g[3]
     h[3] = f[4]**2*g[3] - 2*f[3]*f[4]**2 - 2*f[3]*f[5] - 2*f[1]*f[4]*f[5] + 2*f[1]*f[4]*g[5]
     h[4] = -2*f[4]**2*f[5] + g[5]*f[4]**2 - f[5]**2
+
+    # Check for NaN/Inf in polynomial coefficients
+    if np.any(np.isnan(h)) or np.any(np.isinf(h)):
+        return []
 
     x_roots = np.roots(h)
     # Only keep real, positive roots (imaginary part < 1e-8)
@@ -418,6 +431,15 @@ M. Persson and K. Nordberg, “Lambda Twist: An Accurate Fast Robust Perspective
 """
 def lambdatwist(p_w, p_i, polishing=True):
     # p_w: 3x3 world points, p_i: 3x3 bearing vectors (normalized)
+    # Check for degenerate input (collinear or coincident points)
+    if (
+        np.linalg.matrix_rank(p_w) < 2 or
+        np.linalg.norm(np.cross(p_w[:,1] - p_w[:,0], p_w[:,2] - p_w[:,0])) < 1e-10 or
+        np.any(np.isnan(p_w)) or np.any(np.isnan(p_i)) or
+        np.any(np.isinf(p_w)) or np.any(np.isinf(p_i))
+    ):
+        return []
+
     y1 = p_i[:, 0] / np.linalg.norm(p_i[:, 0])
     y2 = p_i[:, 1] / np.linalg.norm(p_i[:, 1])
     y3 = p_i[:, 2] / np.linalg.norm(p_i[:, 2])
@@ -452,6 +474,10 @@ def lambdatwist(p_w, p_i, polishing=True):
     p2 = 2.0 * blob * a23 * a13 + a13 * (2.0 * a12 + a13) * s23_squared + a23 * (a23 - a12) * s31_squared
     p1 = a23 * (a13 - a23) * s12_squared - a12 * a12 * s23_squared - 2.0 * a12 * (blob * a23 + a13 * s23_squared)
     p0 = a12 * (a12 * s23_squared - a23 * s12_squared)
+
+    # Check for NaN/Inf in cubic coefficients
+    if np.any(np.isnan([p3, p2, p1, p0])) or np.any(np.isinf([p3, p2, p1, p0])):
+        return []
 
     # Cubic root selection as in C++/MATLAB
     if abs(p3) >= abs(p0):
